@@ -5,23 +5,12 @@ import { ethers } from 'ethers';
 function App() {
   const [stock, setStock] = useState(20);
   const [logs, setLogs] = useState([]);
-  const [isRestocking, setIsRestocking] = useState(false);
-  
+  const [isRestocking, setIsRestocking] = useState(false); 
   const processingRef = useRef(false);
 
   const addLog = (msg) => setLogs(prev => [msg, ...prev].slice(0, 5));
 
   // --- ROBOT 1: SIMULATE CUSTOMERS BUYING ---
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     setStock(currentStock => {
-  //       if (currentStock > 0) return currentStock - 1; // 1kg sold
-  //       return currentStock;
-  //     });
-  //   }, 1500); // Fast speed: 1 sale every 1.5 seconds
-  //   return () => clearInterval(interval);
-  // }, []);
-
   useEffect(() => {
     const interval = setInterval(() => {
       setStock(currentStock => {
@@ -30,7 +19,7 @@ function App() {
       });
     }, 1500);
     return () => clearInterval(interval);
-  }, []);
+  }, [])
 
 
 
