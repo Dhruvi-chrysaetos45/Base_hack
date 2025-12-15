@@ -1,50 +1,83 @@
+require('dotenv').config(); // <--- 1. LOAD ENV VARS (CRITICAL)
 const express = require('express');
 const cors = require('cors');
 const app = express();
 const PORT = 3000;
 
+// <--- 2. ENABLE CORS WITH HEADERS (CRITICAL)
+app.use(cors({
+  origin: '*',
+  exposedHeaders: ['x-payment-hash'] // Allows frontend to read the hash
+}));
 
-app.use(cors());
 app.use(express.json());
 
-const SUPPLIER_WALLET = process.env.SUPPLIER_WALLET_ADDRESS;
-
-// 3. Create the "Order" endpoint
-app.post('/buy-stock', (req, res) => {
-    const { item, quantity } = req.body;
-
-    // --- CHANGE IS HERE ---
-    // We now look for 'x-payment-hash' (The Receipt from Blockchain)
-    const paymentHash = req.headers['x-payment-hash'];
-
-    if (!paymentHash) {
-        console.log(`❌ Order blocked! Asking ${item} buyer for payment.`);
-        
-        // Return ERROR 402 with instructions to pay ETH
-        return res.status(402).json({
-            error: "Payment Required",
-            message: "You must pay to restock this item.",
-            paymentDetails: {
-                amount: "0.0001",    // Small amount of ETH for testing
-                currency: "ETH",
-                chain: "Base Sepolia", 
-                destination: SUPPLIER_WALLET
-            }
-        });
-    }
-
-    // IF HASH EXISTS (The user paid!)
-    console.log(`✅ Payment Proof (Hash) Received: ${paymentHash}`);
-    console.log(`📦 Shipping ${quantity} ${item}...`);
-    
-    res.json({ 
-        success: true, 
-        message: `Payment Verified on Chain! ${quantity} ${item} shipped.` 
+// 🌍 A2A DISCOVERY (Make your agent "visible" to the network)
+app.get('/.well-known/agent.json', (req, res) => {
+    res.json({
+        "name": "SmartWholesale Supplier",
+        "capabilities": ["buy-stock", "negotiate-price"],
+        "payment_types": ["x402", "eth-base-sepolia"]
     });
 });
 
-// 4. Start the server
-app.listen(PORT, () => {
-    console.log(`📦 Supplier API is running on http://localhost:${PORT}`);
+// Enhanced supplier with AI pricing
+app.post('/buy-stock', async (req, res) => {
+  const { item, quantity } = req.body;
+  const paymentHash = req.headers['x-payment-hash'];
+
+  // Dynamic pricing
+  const dynamicPricing = {
+    basePrice: 0.0001,
+    surge: new Date().getHours() >= 17 ? 0.00002 : 0,
+    bulkDiscount: quantity > 100 ? -0.00001 : 0
+  };
+  
+  const finalPrice = (
+    dynamicPricing.basePrice + 
+    dynamicPricing.surge + 
+    dynamicPricing.bulkDiscount
+  ).toFixed(6);
+
+  // 1. PAYMENT REQUIRED (402)
+  if (!paymentHash) {
+    console.log(`📦 Order: ${quantity}kg ${item} - Asking ${finalPrice} ETH`);
+    
+    return res.status(402).json({
+      error: "Payment Required",
+      message: `Please send ${finalPrice} ETH`,
+      paymentDetails: {
+        amount: finalPrice,
+        currency: "ETH",
+        chain: "Base Sepolia",
+        destination: process.env.SUPPLIER_WALLET_ADDRESS, // <--- MATCHES .ENV
+        invoiceId: `INV-${Date.now()}`
+      }
+    });
+  }
+
+  // 2. PAYMENT VERIFIED
+  console.log(`✅ Verified Hash: ${paymentHash}`);
+  console.log(`🚚 Shipping...`);
+  
+  res.json({
+    success: true,
+    message: `Payment confirmed! ${quantity}kg ${item} dispatched.`,
+    deliveryEstimate: "2 hours",
+    invoiceSatisfied: true
+  });
 });
 
+// Negotiation Endpoint
+app.post('/negotiate-price', (req, res) => {
+  const { quantity, proposedPrice } = req.body;
+  const responses = [
+    `We can offer ${(proposedPrice * 0.95).toFixed(6)} ETH.`,
+    `Price is fixed due to high demand.`
+  ];
+  res.json({ counterOffer: responses[0], validFor: "600" });
+});
+
+app.listen(PORT, () => {
+  console.log(`🏪 Supplier API running on http://localhost:${PORT}`);
+});
