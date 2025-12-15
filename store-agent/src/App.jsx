@@ -1,18 +1,14 @@
-// App.jsx (The Fully Autonomous Shop)
 import { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
 
 
 function App() {
-  // 1. We start with 20kg of Rice
   const [stock, setStock] = useState(20);
   const [logs, setLogs] = useState([]);
   const [isRestocking, setIsRestocking] = useState(false);
   
-  // A Ref to keep track of "Do not order twice at the same time"
   const processingRef = useRef(false);
 
-  // Helper to add messages to the screen
   const addLog = (msg) => setLogs(prev => [msg, ...prev].slice(0, 5));
 
   // --- ROBOT 1: SIMULATE CUSTOMERS BUYING ---
@@ -52,11 +48,8 @@ function App() {
     addLog("⚠️ Stock Low! Agent waking up...");
 
     try {
-      // 1. Connect to Real Blockchain (Base Sepolia Testnet)
-      const provider = new ethers.JsonRpcProvider("https://sepolia.base.org");
+      const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
       
-      // 2. Load YOUR Wallet (The one with the money)
-      // Note: We use import.meta.env to read the file we made in Step 3
       const privateKey = import.meta.env.VITE_AGENT_PRIVATE_KEY;
       if (!privateKey) throw new Error("No Private Key found in .env file!");
       
@@ -138,86 +131,3 @@ function App() {
 }
 
 export default App;
-
-
-
-// function App() {
-//   const [status, setStatus] = useState("Idle");
-
-//   // 1. Create a temporary "Burner Wallet" for the Agent
-//   // In a real app, you would load a private key from a secure env file
-//   const agentWallet = ethers.Wallet.createRandom();
-
-//   const handleRestock = async () => {
-//     setStatus("Initiating Order...");
-    
-//     try {
-//       // --- ATTEMPT 1: Try to order normally ---
-//       let response = await fetch('http://localhost:3000/buy-stock', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify({ item: "Rice", quantity: 50 })
-//       });
-
-//       // --- THE x402 LOGIC ---
-//       if (response.status === 402) {
-//         setStatus("⚠️ Payment Required! Analyzing 402 Request...");
-        
-//         // 1. Read the invoice from the supplier
-//         const invoice = await response.json();
-//         console.log("Invoice received:", invoice);
-
-//         // 2. The Agent "Signs" the payment (Simulation)
-//         // This proves the agent authorizes the spending
-//         setStatus(`💸 Paying ${invoice.paymentDetails.amount} USDC...`);
-//         const paymentSignature = await agentWallet.signMessage(
-//             `I authorize payment of ${invoice.paymentDetails.amount} USDC to ${invoice.paymentDetails.destination}`
-//         );
-
-//         // 3. Wait 2 seconds (to look cool/realistic)
-//         await new Promise(r => setTimeout(r, 2000));
-
-//         // 4. ATTEMPT 2: Retry with the payment proof attached
-//         response = await fetch('http://localhost:3000/buy-stock', {
-//           method: 'POST',
-//           headers: { 
-//             'Content-Type': 'application/json',
-//             'x-payment-token': paymentSignature // Attach the proof!
-//           },
-//           body: JSON.stringify({ item: "Rice", quantity: 50 })
-//         });
-//       }
-
-//       // Final Success Message
-//       const data = await response.json();
-//       setStatus(data.message);
-//       console.log("Final Success:", data);
-
-//     } catch (error) {
-//       console.error("Error:", error);
-//       setStatus("System Error.");
-//     }
-//   };
-
-//   return (
-//     <div style={{ padding: "50px", fontFamily: "Arial", textAlign: "center" }}>
-//       <h1>🏪 Kirana Store (AI Agent)</h1>
-//       <div style={{ border: "2px solid #333", padding: "20px", borderRadius: "10px", display: "inline-block" }}>
-//         <h3>Product: Basmati Rice</h3>
-//         <p>Current Stock: <b style={{ color: "red" }}>5kg (LOW)</b></p>
-//         <p style={{fontSize: "0.8rem", color: "#666"}}>Agent Wallet: {agentWallet.address.slice(0,6)}...{agentWallet.address.slice(-4)}</p>
-        
-//         <button 
-//           onClick={handleRestock}
-//           style={{ padding: "15px 30px", fontSize: "1rem", cursor: "pointer", background: "#6200ea", color: "white", border: "none", borderRadius: "5px" }}
-//         >
-//           🤖 Auto-Restock with x402
-//         </button>
-        
-//         <p style={{ marginTop: "20px", fontWeight: "bold" }}>Status: {status}</p>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default App;
